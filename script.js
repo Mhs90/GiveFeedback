@@ -1,11 +1,34 @@
+const BASE_API_URL = "http://127.0.0.1:5000/";
 const textareaEL = document.querySelector('.form__textarea');
 const counterEL = document.querySelector('.counter');
 const formEL = document.querySelector('.form');
 const feedbackEl = document.querySelector('.feedbacks')
 const submitEl = document.querySelector('.submit-btn');
 const spinnerEl = document.querySelector('.spinner');
+const hashtagListEL = document.querySelector(".hashtags")
 const MaxChars = 150;
 const timer = 2000;
+
+
+const RenderFeedback = (feedsItem) => {
+  const feedItem = `
+    <li class="feedback">
+            <button class="upvote">
+                <i class="fa-solid fa-caret-up upvote__icon"></i>
+                <span class="upvote__count">${feedsItem.upvoteCount}</span>
+            </button>
+            <section class="feedback__badge">
+                <p class="feedback__letter">${feedsItem.badgeLetter}</p>
+            </section>
+            <div class="feedback__content">
+                <p class="feedback__company">${feedsItem.company}</p>
+                <p class="feedback__text">${feedsItem.text}</p>
+            </div>
+            <p class="feedback__date">${feedsItem.daysAgo === 0 ? "NEW" : `${feedsItem.daysAgo}d`}</p>
+        </li>
+    `;
+  feedbackEl.insertAdjacentHTML('beforeend', feedItem);
+}
 
 const inputHandler = () => {
   const CharsTyped = textareaEL.value.length;
@@ -40,30 +63,23 @@ const submitHandler = event => {
   const upvoteCount = 0;
   const daysAgo = 0;
 
-  const feedItem = `
-    <li class="feedback">
-            <button class="upvote">
-                <i class="fa-solid fa-caret-up upvote__icon"></i>
-                <span class="upvote__count">${upvoteCount}</span>
-            </button>
-            <section class="feedback__badge">
-                <p class="feedback__letter">${badgeLetter}</p>
-            </section>
-            <div class="feedback__content">
-                <p class="feedback__company">${company}</p>
-                <p class="feedback__text">${text}</p>
-            </div>
-            <p class="feedback__date">${daysAgo === 0 ? "NEW" : `${daysAgo}d`}</p>
-        </li>
-    `;
-  feedbackEl.insertAdjacentHTML('beforeend', feedItem);
+  const feedsItem = {
+    upvoteCount: upvoteCount,
+    badgeLetter: badgeLetter,
+    company: company,
+    text: text,
+    daysAgo: daysAgo
+  }
+
+  RenderFeedback(feedsItem);
   textareaEL.value = "";
   submitEl.blur();
   counterEL.textContent = 150;
   spinnerEl.remove()
-  fetch("http://127.0.0.1:5000/add", {
+  fetch(`${BASE_API_URL}add`, {
     method: "POST",
     headers: {
+      Accept: "application/json",
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -86,7 +102,7 @@ function changeClass(className) {
 
 formEL.addEventListener('submit', submitHandler);
 
-fetch('http://127.0.0.1:5000/users')
+fetch(`${BASE_API_URL}users`)
   .then(response => {
     return response.json()
   }).then(data => {
@@ -99,23 +115,15 @@ fetch('http://127.0.0.1:5000/users')
         Math.floor((now - created) / (1000 * 60 * 60 * 24))
       );
 
-      const feedsItem = `
-    <li class="feedback">
-            <button class="upvote">
-                <i class="fa-solid fa-caret-up upvote__icon"></i>
-                <span class="upvote__count">${feedItem.upvoteCount}</span>
-            </button>
-            <section class="feedback__badge">
-                <p class="feedback__letter">${feedItem.badgeLetter}</p>
-            </section>
-            <div class="feedback__content">
-                <p class="feedback__company">${feedItem.company}</p>
-                <p class="feedback__text">${feedItem.text}</p>
-            </div>
-            <p class="feedback__date">${diffDays < 1 ? "NEW" : `${diffDays}d`}</p>
-        </li>
-    `;
-      feedbackEl.insertAdjacentHTML('beforeend', feedsItem);
+      var feedsItem2 = {
+        upvoteCount: feedItem.upvoteCount,
+        badgeLetter: feedItem.badgeLetter,
+        company: feedItem.company,
+        text: feedItem.text,
+        daysAgo: diffDays
+      }
+
+      RenderFeedback(feedsItem2)
       spinnerEl.remove()
 
     });
@@ -123,4 +131,41 @@ fetch('http://127.0.0.1:5000/users')
     feedbackEl.textContent = `Faild to load feedbacks. EROR Message: ${error.message}`
   });
 
+const clickHandler = event => {
+  const clickedEl = event.target;
+  const upvoteEl = clickedEl.className.includes("upvote");
+  if (upvoteEl) {
+    const upvoteBtnEl = clickedEl.closest(".upvote");
+    upvoteBtnEl.disabled = true;
+    const upvoteCountEl = upvoteBtnEl.querySelector(".upvote__count");
+    let upvoteCount = +upvoteBtnEl.textContent;
+    upvoteCountEl.textContent = ++upvoteCount
 
+  }
+  else {
+    clickedEl.closest('.feedback').classList.toggle('feedback--expand');
+  }
+}
+
+feedbackEl.addEventListener("click", clickHandler);
+
+const hashtagClickHandler = event => {
+  const clickedEl = event.target;
+
+  if (clickedEl.className === "hashtags") return;
+
+  const companyNameFromHashtag = clickedEl.textContent.substring(1).trim();
+
+  feedbackEl.childNodes.forEach(element => {
+    if (element.nodeType === 3) return;
+    const companyNameFromFeedbackItem = element.querySelector(".feedback__company").textContent.toLowerCase().trim();
+    if (companyNameFromFeedbackItem !== companyNameFromHashtag.toLowerCase()) {
+      element.remove()
+    }
+  });
+
+
+}
+
+
+hashtagListEL.addEventListener("click", hashtagClickHandler)
